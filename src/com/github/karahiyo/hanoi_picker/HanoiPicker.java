@@ -4,7 +4,12 @@ import java.io.IOException;
 
 public class HanoiPicker {
 
-	public static void main(String[] args) 
-			throws InterruptedException, IOException {
+	public static void main(String[] args)  {
+		PickerDaemon picker = new PickerDaemon();
+		try {
+			picker.execCmd();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
