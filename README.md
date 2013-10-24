@@ -18,4 +18,6 @@ Hadoop method trace logger, and count about each key.
 
 ## Licence
 
-
+## Reference
+- http://www.gadgety.net/shin/java/sockets.html
+- http://www.acroquest.co.jp/webworkshop/JavaNetwork/NP_source_socket.html
