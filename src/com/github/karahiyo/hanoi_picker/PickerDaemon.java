@@ -2,98 +2,100 @@ package com.github.karahiyo.hanoi_picker;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.InputStreamReader;
 import java.io.File;
+import java.io.PrintStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketTimeoutException;
 
-public class PickerDaemon {
+/**
+ * receive message from PickerClient, and count-up keys.
+ * 
+ * @author yu_ke
+ *
+ */
+public class PickerDaemon implements Runnable {
 
-	private InputStream in = null;
-	private InputStream ein = null;
-	private OutputStream out = null;
-	private Process process = null;
+	private DataInputStream is = null;
+	private PrintStream os = null;
 
-	public PickerDaemon() {
+	/** server socket */
+	private ServerSocket serverSocket;
+	
+	/** set port */
+	private static final int PORT = 9999;
+	private static final int MINIMUM_PORT_NUMBER = 1024;
+	private static final int MAXMUM_PORT_NUMBER = 65535;
+	
+	/** a flag for jedging receiving data from client now. */
+    private boolean         isRecievedNow;
+
+    /** a flag for receiving teminate message. */
+    private boolean         isTermination;
+    
+    /** server socket timeout(ms) */
+    public static final int    TIMEOUT_SERVER_SOCKET     = 500;
+    
+	public PickerDaemon() throws IOException {
+		try {
+			this.serverSocket = new ServerSocket(this.PORT);
+			this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
+		} catch (IOException e) {
+			System.out.println(e);
+		}
 	}
 
-	public void execCmd() throws InterruptedException, IOException {
+	@Override
+	public void run() {
 
-		/* current working directory */
-		File dir = new File("/tmp");
-		
-		/* exec command */
-		String[] cmd = {"java","-version"};
-		process = Runtime.getRuntime().exec(cmd, null, dir);
+		while ( ! this.isTermination) {
+			Socket connectedSocket = null;
+			
+			try {
+				connectedSocket = this.serverSocket.accept();
+			} catch (SocketTimeoutException timeExc) {
+				// nothing to do
+			} catch (IOException e) {
+				System.out.println(e);
+			}
+			
+			// not accepting data
+			if ( connectedSocket == null) {
+				continue;
+			}
+	
+			try {
+				/* get data input stream of socket */
+				is = new DataInputStream(connectedSocket.getInputStream());
 
-		/* get inputstream of sub process */
-		in = process.getInputStream();
+				/* get outputstream of sub process */
+				os  = new PrintStream(connectedSocket.getOutputStream());
+				BufferedReader bf = new BufferedReader(new InputStreamReader(is));
 
-		/* get err inputstream of sub process */
-		ein = process.getErrorStream();
-
-		/* get outputstream of sub process */
-		out  = process.getOutputStream();
-
-		try {
-
-			Runnable inputStreamThread = new Runnable(){
-				public void run(){		
-					try {
-						System.out.println("** Thread stdRun start");
-						BufferedReader bf = new BufferedReader(new InputStreamReader(in));
-						String line;
-						while ( (line = bf.readLine()) != null) {
-							System.out.println(line);
-						}
-						System.out.println("** Thread stdRun end");
-					} catch (Exception e) {		
-						e.printStackTrace();      	
-					}
+				String line;
+				while ( (line = bf.readLine()) != null) {
+					System.out.println(line);
+					os.println(line);
 				}
-			};
-			
-			Runnable errStreamThread = new Runnable() {
-				public void run() {
-					try {
-						System.out.println("** Thread errRun start");
-						BufferedReader ebf = new BufferedReader(new InputStreamReader(ein));
-						String errLine;
-						while ( (errLine = ebf.readLine()) != null) {
-							System.out.println(errLine);
-						}
-						System.out.println("** Thread errRun end");
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
+				
+				/* close child process */
+				if (is != null) is.close();
+				if (os != null) os.close();
+
+			} catch(Exception e) {
+				e.printStackTrace();
+			} finally {
+				try {
+					/* close child process */
+					if (is != null) is.close();
+					if (os != null) os.close();
+				} catch (IOException e) {
+					System.out.println(e);
 				}
-			};
-			
-			Thread stdRun = new Thread(inputStreamThread);
-			Thread errRun = new Thread(errStreamThread);
-			
-			/* process start */
-			stdRun.start();
-			errRun.start();
-			
-			/* wait for process exit */
-			int c = process.waitFor();
-			
-			/* wait for sub thread exit */
-			stdRun.join();
-			errRun.join();
-			
-			/* exit status code */
-			System.out.println("** exit status: " + c);
-		
-		} catch(Exception e) {
-			e.printStackTrace();
-		} finally {
-			/* close child process */
-			if (in != null) in.close();
-			if (ein != null) ein.close();
-			if (out != null) out.close();
-			process.destroy();
+			}
 		}
 	}
 }
