@@ -3,13 +3,14 @@ package com.github.karahiyo.hanoi_picker;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.InputStreamReader;
-import java.io.File;
 import java.io.PrintStream;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.net.URLDecoder;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * receive message from PickerClient, and count-up keys.
@@ -39,6 +40,8 @@ public class PickerDaemon implements Runnable {
     /** server socket timeout(ms) */
     public static final int    TIMEOUT_SERVER_SOCKET     = 500;
     
+	public Map<String, Integer> hist = new HashMap<String, Integer>();
+
 	public PickerDaemon() throws IOException {
 		try {
 			this.serverSocket = new ServerSocket(this.PORT);
@@ -75,11 +78,19 @@ public class PickerDaemon implements Runnable {
 				os  = new PrintStream(connectedSocket.getOutputStream());
 				BufferedReader bf = new BufferedReader(new InputStreamReader(is));
 
+				
 				String line;
 				while ( (line = bf.readLine()) != null) {
-					System.out.println(line);
+					line = URLDecoder.decode(line, "UTF-8");
+					if ( hist.containsKey(line) ) {
+						hist.put(line, hist.get(line) + 1);
+					} else {
+						hist.put(line, (Integer)1);
+					}
+					System.out.println(hist);
 					os.println(line);
 				}
+
 				
 				/* close child process */
 				if (is != null) is.close();
