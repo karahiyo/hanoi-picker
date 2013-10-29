@@ -12,8 +12,10 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.apache.hadoop.mapreduce.*;
+
 /**
- * receive message from PickerClient, and count-up keys.
+ * receive message from PickerClient, and count-up each keys.
  * 
  * @author yu_ke
  *
