@@ -1,8 +1,8 @@
 package com.github.karahiyo.hanoi_picker;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.DataInputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.net.ServerSocket;
@@ -12,7 +12,9 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.apache.hadoop.mapreduce.*;
+import org.msgpack.MessagePack;
+import org.msgpack.annotation.Message;
+
 
 /**
  * receive message from PickerClient, and count-up each keys.
@@ -33,15 +35,22 @@ public class PickerDaemon implements Runnable {
 	private static final int MINIMUM_PORT_NUMBER = 1024;
 	private static final int MAXMUM_PORT_NUMBER = 65535;
 	
-	/** a flag for jedging receiving data from client now. */
+	/** a flag for receiving data from client now. */
     private boolean         isRecievedNow;
 
-    /** a flag for receiving teminate message. */
+    /** a flag for receiving terminate message. */
     private boolean         isTermination;
     
     /** server socket timeout(ms) */
     public static final int    TIMEOUT_SERVER_SOCKET     = 500;
     
+    /** daemon start time */
+    private long 	DAEMON_START_TIME; 
+    private long 	LAST_HIST_OUT_TIME;
+ 	
+	/** hist out interval */
+	public static final int HIST_OUT_INTETRVAL = 5000; //ms
+   
 	public Map<String, Integer> hist = new HashMap<String, Integer>();
 
 	public PickerDaemon() throws IOException {
@@ -55,6 +64,9 @@ public class PickerDaemon implements Runnable {
 
 	@Override
 	public void run() {
+		
+		DAEMON_START_TIME = System.currentTimeMillis();
+		LAST_HIST_OUT_TIME = System.currentTimeMillis();
 
 		while ( ! this.isTermination) {
 			Socket connectedSocket = null;
@@ -66,7 +78,16 @@ public class PickerDaemon implements Runnable {
 			} catch (IOException e) {
 				System.out.println(e);
 			}
-			
+
+			// output hist
+			if(LAST_HIST_OUT_TIME + HIST_OUT_INTETRVAL <= System.currentTimeMillis() ) {
+				long timestamp = LAST_HIST_OUT_TIME+ HIST_OUT_INTETRVAL; 
+				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
+				System.out.println(timestamp + ":" + hist);
+				hist.clear();
+			}
+
+
 			// not accepting data
 			if ( connectedSocket == null) {
 				continue;
@@ -76,20 +97,20 @@ public class PickerDaemon implements Runnable {
 				/* get data input stream of socket */
 				is = new DataInputStream(connectedSocket.getInputStream());
 
-				/* get outputstream of sub process */
+				/* get output stream of sub process */
 				os  = new PrintStream(connectedSocket.getOutputStream());
 				BufferedReader bf = new BufferedReader(new InputStreamReader(is));
 
 				
+
 				String line;
 				while ( (line = bf.readLine()) != null) {
 					line = URLDecoder.decode(line, "UTF-8");
 					if ( hist.containsKey(line) ) {
 						hist.put(line, hist.get(line) + 1);
 					} else {
-						hist.put(line, (Integer)1);
+						hist.put(line, 1);
 					}
-					System.out.println(hist);
 					os.println(line);
 				}
 
