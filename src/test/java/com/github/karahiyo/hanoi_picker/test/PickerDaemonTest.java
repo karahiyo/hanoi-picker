@@ -18,7 +18,7 @@ public class PickerDaemonTest extends TestCase{
 	}
 
 	@Test
-	public void testMakeJsonString() throws IOException{
+	public void testMakeJsonString() {
 		PickerDaemon picker = new PickerDaemon();
 		long time = 1383115449245L;
 		Map<String, Integer> hist = new HashMap<String, Integer>();
@@ -29,8 +29,14 @@ public class PickerDaemonTest extends TestCase{
 		String json = picker.makeJsonString(time, hist) ;
 		// make Jackson mapper object
 		ObjectMapper mapper = new ObjectMapper();
-		Map<String,Object> result = mapper.readValue(json, Map.class);
-		assertEquals(result.get("time"), 1383115449245L);
+		Map<String, Object> result = new HashMap<String, Object>();
+		try {
+			result = mapper.readValue(json, Map.class);
+		} catch (IOException e) {
+			System.err.println(e.getStackTrace());
+			fail("Error: in read json string into Json ObjectMapper");
+		}
+		assertEquals((long)result.get("time"), 1383115449245L);
 		Map<String,Integer> keymap = (HashMap<String, Integer>)result.get("keymap");
 
 		//"{\"time\":1383115449245,\"keymap\":{\"a\":1,\"b\":3,\"c\",19},\"sum\":23}"
@@ -39,6 +45,17 @@ public class PickerDaemonTest extends TestCase{
 		assertEquals((int)keymap.get("c"), 19);
 		assertEquals((int)result.get("sum"), 23);
 		
+	}
+	
+	@Test
+	public void testCountAllFreq() {
+		PickerDaemon picker = new PickerDaemon();
+		Map<String, Integer> map = new HashMap<String,Integer>();
+		map.put("a", 10);
+		map.put("b", 7);
+		map.put("c", 178);
+		long sum = picker.countAllFreq(map);
+		assertEquals(sum, 195L);
 	}
 
 }
