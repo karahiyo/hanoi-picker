@@ -55,7 +55,7 @@ public class PickerDaemon implements Runnable {
 	/** main histogram data */
 	public Map<String, Integer> hist = new HashMap<String, Integer>();
 
-	public PickerDaemon() throws IOException {
+	public PickerDaemon() {
 		try {
 			this.serverSocket = new ServerSocket(this.PORT);
 			this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
