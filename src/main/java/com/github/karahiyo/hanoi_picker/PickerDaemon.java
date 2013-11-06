@@ -53,7 +53,7 @@ public class PickerDaemon implements Runnable {
 	public static final int HIST_OUT_INTETRVAL = 5000; //ms
 
 	/** main histogram data */
-	public Map<String, Integer> hist = new HashMap<String, Integer>();
+	public Map<String, Long> hist = new HashMap<String, Long>();
 
 	public PickerDaemon() {
 		try {
@@ -114,7 +114,7 @@ public class PickerDaemon implements Runnable {
 					if ( hist.containsKey(line) ) {
 						hist.put(line, hist.get(line) + 1);
 					} else {
-						hist.put(line, 1);
+						hist.put(line, 1L);
 					}
 					os.println(line);
 				}
@@ -138,11 +138,11 @@ public class PickerDaemon implements Runnable {
 		}
 	}
 
-	public String makeJsonString(long time, Map<String, Integer> hist) {
+	public String makeJsonString(long time, Map<String, Long> hist) {
 		Map<String,Object> map = new HashMap<String,Object>();
 		map.put("time", time);
 		map.put("keymap", hist);
-		int sum = countAllFreq(hist);
+		long sum = countAllFreq(hist);
 		map.put("sum", sum);
 		ObjectMapper mapper = new ObjectMapper();
 		String json = null;
@@ -159,9 +159,9 @@ public class PickerDaemon implements Runnable {
 		return json;
 	}
 	
-	public int countAllFreq(Map<String, Integer> map) {
+	public long countAllFreq(Map<String, Long> map) {
 		int sum = 0;
-		for (Map.Entry<String, Integer> e : map.entrySet()) {
+		for (Map.Entry<String, Long> e : map.entrySet()) {
 			sum += e.getValue();
 		}
 		return sum;
