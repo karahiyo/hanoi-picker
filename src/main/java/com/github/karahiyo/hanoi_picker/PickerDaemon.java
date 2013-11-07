@@ -1,10 +1,13 @@
 package com.github.karahiyo.hanoi_picker;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.DataInputStream;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
@@ -30,6 +33,10 @@ public class PickerDaemon implements Runnable {
 
 	/** server socket */
 	private ServerSocket serverSocket;
+	
+	/** log output directory. default "/tmp" */
+	private String outdir = "/tmp";
+	private final String outfile = "hanoi-trace.log";
 
 	/** set port */
 	private static final int PORT = 9999;
@@ -55,13 +62,31 @@ public class PickerDaemon implements Runnable {
 	/** main histogram data */
 	public Map<String, Long> hist = new HashMap<String, Long>();
 
-	public PickerDaemon() {
-		try {
-			this.serverSocket = new ServerSocket(this.PORT);
-			this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
-		} catch (IOException e) {
-			System.out.println(e);
-		}
+	// construct
+	public PickerDaemon() {}
+	
+	/**
+	 * setup socket connection
+	 * @param 
+	 * @throws IOException
+	 */
+	public void setupSocket() throws IOException {
+		this.serverSocket = new ServerSocket(this.PORT);
+		this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
+	}
+	
+	/**
+	 * setup socket connection 
+	 * @param port
+	 * @throws IOException
+	 */
+	public void setupSocket(int port) throws IOException {
+		this.serverSocket = new ServerSocket(port);
+		this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
+	}
+	
+	public void setupOutDir(String file) throws IOException {
+		this.outdir = file;
 	}
 
 	@Override
@@ -81,11 +106,21 @@ public class PickerDaemon implements Runnable {
 				System.out.println(e);
 			}
 
-			// output hist
+			// periodical output hist 
 			if(LAST_HIST_OUT_TIME + HIST_OUT_INTETRVAL <= System.currentTimeMillis() ) {
 				long timestamp = LAST_HIST_OUT_TIME+ HIST_OUT_INTETRVAL; 
 				String json = makeJsonString(timestamp, hist);
-				System.out.println(json);
+
+				// debug
+				// System.out.println(json);
+
+				PrintWriter pw;
+				try {
+					pw = new PrintWriter(new BufferedWriter(new FileWriter(this.outdir + "/" + this.outfile)));
+					pw.println(json);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
 
 				/** update */
 				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
