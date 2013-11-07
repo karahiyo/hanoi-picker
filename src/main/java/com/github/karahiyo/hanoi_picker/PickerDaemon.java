@@ -1,12 +1,12 @@
 package com.github.karahiyo.hanoi_picker;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.DataInputStream;
 import java.io.File;
-import java.io.FileWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
@@ -117,7 +117,7 @@ public class PickerDaemon implements Runnable {
 				PrintWriter pw;
 				try {
 					File log_file = new File(this.outdir + "/" + this.outfile);
-					pw = new PrintWriter(new BufferedWriter(new FileWriter(log_file)));
+					pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(log_file, true)));
 					pw.println(json);
 					pw.close();
 				} catch (IOException e) {
