@@ -119,6 +119,7 @@ public class PickerDaemon implements Runnable {
 					File log_file = new File(this.outdir + "/" + this.outfile);
 					pw = new PrintWriter(new BufferedWriter(new FileWriter(log_file)));
 					pw.println(json);
+					pw.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
