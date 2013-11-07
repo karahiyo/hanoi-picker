@@ -3,6 +3,7 @@ package com.github.karahiyo.hanoi_picker;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.DataInputStream;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -89,7 +90,6 @@ public class PickerDaemon implements Runnable {
 		this.outdir = file;
 	}
 
-	@Override
 	public void run() {
 
 		DAEMON_START_TIME = System.currentTimeMillis();
@@ -116,7 +116,8 @@ public class PickerDaemon implements Runnable {
 
 				PrintWriter pw;
 				try {
-					pw = new PrintWriter(new BufferedWriter(new FileWriter(this.outdir + "/" + this.outfile)));
+					File log_file = new File(this.outdir + "/" + this.outfile);
+					pw = new PrintWriter(new BufferedWriter(new FileWriter(log_file)));
 					pw.println(json);
 				} catch (IOException e) {
 					e.printStackTrace();
