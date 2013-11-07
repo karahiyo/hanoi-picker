@@ -112,7 +112,7 @@ public class PickerDaemon implements Runnable {
 				String json = makeJsonString(timestamp, hist);
 
 				// debug
-				// System.out.println(json);
+				System.out.println(json);
 
 				PrintWriter pw;
 				try {
