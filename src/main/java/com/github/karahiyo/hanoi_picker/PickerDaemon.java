@@ -5,6 +5,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
@@ -37,7 +38,7 @@ public class PickerDaemon implements Runnable {
 
 	/** パケットサイズ */
 	public final int PACKET_SIZE = 1024;
-	
+
 	/** set port */
 	private final int PORT = 55000;
 	private static final int MINIMUM_PORT_NUMBER = 50000;
@@ -94,21 +95,17 @@ public class PickerDaemon implements Runnable {
 		DAEMON_START_TIME = System.currentTimeMillis();
 		LAST_HIST_OUT_TIME = System.currentTimeMillis();
 
-		byte[] buf = new byte[this.PACKET_SIZE];
-		DatagramPacket packet = new DatagramPacket(buf, buf.length);
-
 		while ( ! this.isTermination) {
 
-			try {
-				/** 受信 & wait */
-				serverSocket.receive(packet);
-				/** 送信元情報取得 */
-				socketAddress = packet.getSocketAddress();
-			} catch (SocketTimeoutException timeExc) {
-				// nothing to do
-			} catch (IOException e) {
-				System.out.println(e);
-			}
+
+			/** 
+			 * 受信データ格納変数を初期化
+			 */
+			byte[] buf = new byte[this.PACKET_SIZE];
+			DatagramPacket packet = new DatagramPacket(buf, buf.length);
+			int len = 0;			
+			String msg = "";
+
 
 			// periodical output hist 
 			if(LAST_HIST_OUT_TIME + HIST_OUT_INTETRVAL <= System.currentTimeMillis() ) {
@@ -130,25 +127,45 @@ public class PickerDaemon implements Runnable {
 
 				/** update */
 				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
-				System.out.println("Clear hist data at " + timestamp);
 				hist.clear();
 			}
 
-			/** 受信バイト数取得 */
-			int len = packet.getLength();
-			String msg = new String(buf, 0, len);
-			System.out.println("[RECEIV] " + msg + " from " + socketAddress);
+			/**
+			 * 受信処理
+			 */
+			try {
+				/** 受信 & wait */
+				serverSocket.receive(packet);
+				/** 送信元情報取得 */
+				socketAddress = packet.getSocketAddress();
+			} catch (SocketTimeoutException timeExc) {
+				// nothing to do
+			} catch (IOException e) {
+				System.out.println(e);
+			}
 
-			// not accepting data
-			if ( msg.equals("") || this.socketAddress == null) {
-				continue;
+			/** 受信バイト数取得 */
+			len = packet.getLength();
+			try {
+				msg = new String(buf, 0, len, "UTF-8");
+			} catch (UnsupportedEncodingException e) {
+				e.printStackTrace();
 			}
 
 			try {
-				if ( hist.containsKey(msg) ) {
-					hist.put(msg, hist.get(msg) + 1);
+				// not accepting data
+				if ( msg == null || msg.equals("") || msg.length() == 1024  || this.socketAddress == null) {
+					continue;
 				} else {
-					hist.put(msg, 1L);
+					if ( hist.containsKey(msg) ) {
+						//System.out.println("[Update Hist] (" + msg + ") from " + socketAddress);
+						hist.put(msg, hist.get(msg) + 1);
+						//System.out.println("[DEBUG] hist = " + hist);
+					} else {
+						//System.out.println("[add key to hist] " + msg.getClass() + ",(" + msg + ")" + msg.length() + " from " + socketAddress);
+						hist.put(msg, 1L);
+						//System.out.println("[DEBUG] hist = " + hist);
+					}
 				}
 
 			} catch(Exception e) {
@@ -195,7 +212,7 @@ public class PickerDaemon implements Runnable {
 		}
 		return sum;
 	}
-	
+
 	public boolean terminate() {
 		this.isTermination = true;
 		return true;
