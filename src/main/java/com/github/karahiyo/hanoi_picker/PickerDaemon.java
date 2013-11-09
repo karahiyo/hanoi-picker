@@ -193,8 +193,10 @@ public class PickerDaemon implements Runnable {
 	public String makeJsonString(long time, Map<String, Long> hist) {
 		Map<String,Object> map = new HashMap<String,Object>();
 		map.put("time", this.now());
-		map.put("keymap", hist);
 		long sum = countAllFreq(hist);
+		if(sum > 0) {
+			map.put("keymap", hist);
+		}
 		map.put("sum", sum);
 		ObjectMapper mapper = new ObjectMapper();
 		String json = null;
