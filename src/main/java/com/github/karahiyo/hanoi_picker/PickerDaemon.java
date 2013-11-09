@@ -14,6 +14,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.TimeZone;
 
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
@@ -235,6 +236,7 @@ public class PickerDaemon implements Runnable {
         //long now = System.currentTimeMillis();
         //return Long.toString(now);
         Date date = new Date();
+    	TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"));
         return dayFormat.format(date);
     }
 }
