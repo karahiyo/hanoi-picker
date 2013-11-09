@@ -10,6 +10,8 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -60,6 +62,9 @@ public class PickerDaemon implements Runnable {
 	/** main histogram data */
 	public Map<String, Long> hist = new HashMap<String, Long>();
 
+    public static SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
+
+   
 	// construct
 	public PickerDaemon() {}
 
@@ -186,7 +191,7 @@ public class PickerDaemon implements Runnable {
 
 	public String makeJsonString(long time, Map<String, Long> hist) {
 		Map<String,Object> map = new HashMap<String,Object>();
-		map.put("time", time);
+		map.put("time", this.now());
 		map.put("keymap", hist);
 		long sum = countAllFreq(hist);
 		map.put("sum", sum);
@@ -217,5 +222,17 @@ public class PickerDaemon implements Runnable {
 		this.isTermination = true;
 		return true;
 	}
+	
+    /**
+     * get timestamp
+     * @args
+     * @return String timestamp
+     */
+    public String now() {
+        //long now = System.currentTimeMillis();
+        //return Long.toString(now);
+        Date date = new Date();
+        return dayFormat.format(date);
+    }
 }
 
