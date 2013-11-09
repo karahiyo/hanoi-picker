@@ -162,6 +162,7 @@ public class PickerDaemon implements Runnable {
 				if ( msg == null || msg.equals("") || msg.length() == 1024  || this.socketAddress == null) {
 					continue;
 				} else {
+					msg = msg.toString();
 					if ( hist.containsKey(msg) ) {
 						//System.out.println("[Update Hist] (" + msg + ") from " + socketAddress);
 						hist.put(msg, hist.get(msg) + 1);
