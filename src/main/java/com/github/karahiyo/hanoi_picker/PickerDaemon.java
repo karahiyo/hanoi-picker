@@ -1,18 +1,14 @@
 package com.github.karahiyo.hanoi_picker;
 
-import java.io.BufferedReader;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
-import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.net.ServerSocket;
-import java.net.Socket;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
-import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,19 +25,19 @@ import org.codehaus.jackson.map.ObjectMapper;
  */
 public class PickerDaemon implements Runnable {
 
-	private DataInputStream is = null;
-	private PrintStream os = null;
-
 	/** server socket */
-	private ServerSocket serverSocket;
+	private DatagramSocket serverSocket;
+	
+	/** messsage send host */
+	private SocketAddress socketAddress;
 	
 	/** log output directory. default "/tmp" */
 	private String outdir = "/tmp";
 	private final String outfile = "hanoi-trace.log";
 
 	/** set port */
-	private static final int PORT = 9999;
-	private static final int MINIMUM_PORT_NUMBER = 1024;
+	private final int PORT = 9999;
+	private static final int MINIMUM_PORT_NUMBER = 50000;
 	private static final int MAXMUM_PORT_NUMBER = 65535;
 
 	/** a flag for receiving data from client now. */
@@ -51,7 +47,7 @@ public class PickerDaemon implements Runnable {
 	private boolean         isTermination;
 
 	/** server socket timeout(ms) */
-	public static final int    TIMEOUT_SERVER_SOCKET     = 500;
+	public final int    TIMEOUT_SERVER_SOCKET     = 5000;
 
 	/** daemon start time */
 	private long 	DAEMON_START_TIME; 
@@ -72,7 +68,7 @@ public class PickerDaemon implements Runnable {
 	 * @throws IOException
 	 */
 	public void setupSocket() throws IOException {
-		this.serverSocket = new ServerSocket(this.PORT);
+		this.serverSocket = new DatagramSocket(this.PORT);
 		this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
 	}
 	
@@ -82,7 +78,7 @@ public class PickerDaemon implements Runnable {
 	 * @throws IOException
 	 */
 	public void setupSocket(int port) throws IOException {
-		this.serverSocket = new ServerSocket(port);
+		this.serverSocket = new DatagramSocket(port);
 		this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
 	}
 	
@@ -96,10 +92,15 @@ public class PickerDaemon implements Runnable {
 		LAST_HIST_OUT_TIME = System.currentTimeMillis();
 
 		while ( ! this.isTermination) {
-			Socket connectedSocket = null;
 
+			byte[] buf = new byte[256];
+			DatagramPacket packet = new DatagramPacket(buf, buf.length);
+			
 			try {
-				connectedSocket = this.serverSocket.accept();
+				/** 受信 & wait */
+				serverSocket.receive(packet);
+				/** 送信元情報取得 */
+				socketAddress = packet.getSocketAddress();
 			} catch (SocketTimeoutException timeExc) {
 				// nothing to do
 			} catch (IOException e) {
@@ -129,48 +130,29 @@ public class PickerDaemon implements Runnable {
 				hist.clear();
 			}
 
+			/** 受信バイト数取得 */
+			int len = packet.getLength();
 
 			// not accepting data
-			if ( connectedSocket == null) {
+			if ( len == 0) {
 				continue;
 			}
 
 			try {
-				/* get data input stream of socket */
-				is = new DataInputStream(connectedSocket.getInputStream());
-
-				/* get output stream of sub process */
-				os  = new PrintStream(connectedSocket.getOutputStream());
-				BufferedReader bf = new BufferedReader(new InputStreamReader(is));
-
-
-
-				String line;
-				while ( (line = bf.readLine()) != null) {
-					line = URLDecoder.decode(line, "UTF-8");
-					if ( hist.containsKey(line) ) {
-						hist.put(line, hist.get(line) + 1);
+				String msg = new String(buf,0,len);
+				while ( ! msg.equals("") ) {
+					if ( hist.containsKey(msg) ) {
+						hist.put(msg, hist.get(msg) + 1);
 					} else {
-						hist.put(line, 1L);
+						hist.put(msg, 1L);
 					}
-					os.println(line);
 				}
-
-
-				/* close child process */
-				if (is != null) is.close();
-				if (os != null) os.close();
 
 			} catch(Exception e) {
 				e.printStackTrace();
 			} finally {
-				try {
-					/* close child process */
-					if (is != null) is.close();
-					if (os != null) os.close();
-				} catch (IOException e) {
-					System.out.println(e);
-				}
+				/* close child process */
+				serverSocket.close();
 			}
 		}
 	}
