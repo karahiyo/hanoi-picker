@@ -10,8 +10,11 @@ public class HanoiPicker {
 			picker.setupSocket();
 			picker.setupOutDir("/tmp");
 			picker.run();
+			picker.terminate();
 		} catch (Exception e) {
 			e.printStackTrace();
+		} finally {
+			picker.terminate();
 		}
 	}
 }

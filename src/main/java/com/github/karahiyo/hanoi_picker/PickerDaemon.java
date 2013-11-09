@@ -27,24 +27,24 @@ public class PickerDaemon implements Runnable {
 
 	/** server socket */
 	private DatagramSocket serverSocket;
-	
+
 	/** messsage send host */
 	private SocketAddress socketAddress;
-	
+
 	/** log output directory. default "/tmp" */
 	private String outdir = "/tmp";
 	private final String outfile = "hanoi-trace.log";
 
+	/** パケットサイズ */
+	public final int PACKET_SIZE = 1024;
+	
 	/** set port */
-	private final int PORT = 9999;
+	private final int PORT = 55000;
 	private static final int MINIMUM_PORT_NUMBER = 50000;
 	private static final int MAXMUM_PORT_NUMBER = 65535;
 
-	/** a flag for receiving data from client now. */
-	private boolean         isRecievedNow;
-
 	/** a flag for receiving terminate message. */
-	private boolean         isTermination;
+	private boolean         isTermination = false;
 
 	/** server socket timeout(ms) */
 	public final int    TIMEOUT_SERVER_SOCKET     = 5000;
@@ -54,14 +54,14 @@ public class PickerDaemon implements Runnable {
 	private long 	LAST_HIST_OUT_TIME;
 
 	/** hist out interval */
-	public static final int HIST_OUT_INTETRVAL = 5000; //ms
+	public static final int HIST_OUT_INTETRVAL = 1000; //ms
 
 	/** main histogram data */
 	public Map<String, Long> hist = new HashMap<String, Long>();
 
 	// construct
 	public PickerDaemon() {}
-	
+
 	/**
 	 * setup socket connection
 	 * @param 
@@ -70,8 +70,9 @@ public class PickerDaemon implements Runnable {
 	public void setupSocket() throws IOException {
 		this.serverSocket = new DatagramSocket(this.PORT);
 		this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
+		System.out.println("DatagramSocket running: port=" + serverSocket.getLocalPort());
 	}
-	
+
 	/**
 	 * setup socket connection 
 	 * @param port
@@ -80,22 +81,24 @@ public class PickerDaemon implements Runnable {
 	public void setupSocket(int port) throws IOException {
 		this.serverSocket = new DatagramSocket(port);
 		this.serverSocket.setSoTimeout(this.TIMEOUT_SERVER_SOCKET);
+		System.out.println("DatagramSocket running: port=" + serverSocket.getLocalPort());
 	}
-	
+
 	public void setupOutDir(String file) throws IOException {
 		this.outdir = file;
 	}
 
 	public void run() {
+		System.out.println("** START PickerDaemon");
 
 		DAEMON_START_TIME = System.currentTimeMillis();
 		LAST_HIST_OUT_TIME = System.currentTimeMillis();
 
+		byte[] buf = new byte[this.PACKET_SIZE];
+		DatagramPacket packet = new DatagramPacket(buf, buf.length);
+
 		while ( ! this.isTermination) {
 
-			byte[] buf = new byte[256];
-			DatagramPacket packet = new DatagramPacket(buf, buf.length);
-			
 			try {
 				/** 受信 & wait */
 				serverSocket.receive(packet);
@@ -127,32 +130,39 @@ public class PickerDaemon implements Runnable {
 
 				/** update */
 				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
+				System.out.println("Clear hist data at " + timestamp);
 				hist.clear();
 			}
 
 			/** 受信バイト数取得 */
 			int len = packet.getLength();
+			String msg = new String(buf, 0, len);
+			System.out.println("[RECEIV] " + msg + " from " + socketAddress);
 
 			// not accepting data
-			if ( len == 0) {
+			if ( msg.equals("") || this.socketAddress == null) {
 				continue;
 			}
 
 			try {
-				String msg = new String(buf,0,len);
-				while ( ! msg.equals("") ) {
-					if ( hist.containsKey(msg) ) {
-						hist.put(msg, hist.get(msg) + 1);
-					} else {
-						hist.put(msg, 1L);
-					}
+				if ( hist.containsKey(msg) ) {
+					hist.put(msg, hist.get(msg) + 1);
+				} else {
+					hist.put(msg, 1L);
 				}
 
 			} catch(Exception e) {
 				e.printStackTrace();
 			} finally {
 				/* close child process */
-				serverSocket.close();
+				if(this.isTermination) {
+					System.out.println("terminating...");
+					if(serverSocket != null ) {
+						System.out.println("socket close");
+						serverSocket.close();
+					}
+					System.out.println("END");
+				}
 			}
 		}
 	}
@@ -177,13 +187,18 @@ public class PickerDaemon implements Runnable {
 		}
 		return json;
 	}
-	
+
 	public long countAllFreq(Map<String, Long> map) {
 		int sum = 0;
 		for (Map.Entry<String, Long> e : map.entrySet()) {
 			sum += e.getValue();
 		}
 		return sum;
+	}
+	
+	public boolean terminate() {
+		this.isTermination = true;
+		return true;
 	}
 }
 
