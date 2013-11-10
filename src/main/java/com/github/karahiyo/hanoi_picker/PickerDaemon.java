@@ -193,6 +193,7 @@ public class PickerDaemon implements Runnable {
 
 	public String makeJsonString(long time, Map<String, Long> hist) {
 		Map<String,Object> map = new HashMap<String,Object>();
+		Map<String, Object> in_map = new HashMap<String, Object>(); 
 		//fluentd v0.10.34以降では、
 		// format jsonの場合timeが残せない？
 		// http://qiita.com/rch850/items/3b7ce04e38c85a1ce5d0
@@ -202,7 +203,8 @@ public class PickerDaemon implements Runnable {
 		if(sum > 0) {
 			map.put("keymap", hist);
 		}
-		map.put("sum", sum);
+		in_map.put("sum", sum);
+		map.put("metrics", in_map);
 		ObjectMapper mapper = new ObjectMapper();
 		String json = null;
 
