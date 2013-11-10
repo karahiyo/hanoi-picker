@@ -193,7 +193,11 @@ public class PickerDaemon implements Runnable {
 
 	public String makeJsonString(long time, Map<String, Long> hist) {
 		Map<String,Object> map = new HashMap<String,Object>();
-		map.put("time", this.now());
+		//fluentd v0.10.34以降では、
+		// format jsonの場合timeが残せない？
+		// http://qiita.com/rch850/items/3b7ce04e38c85a1ce5d0
+		//map.put("time", this.now());
+		map.put("timestamp", this.now());
 		long sum = countAllFreq(hist);
 		if(sum > 0) {
 			map.put("keymap", hist);
