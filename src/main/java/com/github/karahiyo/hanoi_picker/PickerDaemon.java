@@ -37,7 +37,8 @@ public class PickerDaemon implements Runnable {
 
 	/** log output directory. default "/tmp" */
 	private String outdir = "/tmp";
-	private final String outfile = "hanoi-trace.log";
+	private final String map_outfile = "hanoi-map-trace.log";
+	private final String shuffle_outfile = "hanoi-shffle-trace.log";
 
 	/** パケットサイズ */
 	public final int PACKET_SIZE = 1024;
@@ -60,8 +61,11 @@ public class PickerDaemon implements Runnable {
 	/** hist out interval */
 	public static final int HIST_OUT_INTETRVAL = 1000; //ms
 
-	/** main histogram data */
-	public Map<String, Long> hist = new HashMap<String, Long>();
+	/** map histogram data */
+	public Map<String, Long> map_hist = new HashMap<String, Long>();
+
+	/** reduce histogram data */
+	public Map<String, Long> shuffle_hist = new HashMap<String, Long>();
 
     public static SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 
@@ -91,8 +95,8 @@ public class PickerDaemon implements Runnable {
 		System.out.println("DatagramSocket running: port=" + serverSocket.getLocalPort());
 	}
 
-	public void setupOutDir(String file) throws IOException {
-		this.outdir = file;
+	public void setupOutDir(String dir) throws IOException {
+		this.outdir = dir;
 	}
 
 	public void run() {
@@ -116,24 +120,34 @@ public class PickerDaemon implements Runnable {
 			// periodical output hist 
 			if(LAST_HIST_OUT_TIME + HIST_OUT_INTETRVAL <= System.currentTimeMillis() ) {
 				long timestamp = LAST_HIST_OUT_TIME+ HIST_OUT_INTETRVAL; 
-				String json = makeJsonString(timestamp, hist);
+				String map_json = makeJsonString(timestamp, map_hist);
+				String shuffle_json = makeJsonString(timestamp, shuffle_hist);
 
 				// debug
-				System.out.println(json);
+				System.out.println(map_json);
+				System.out.println(shuffle_json);
 
-				PrintWriter pw;
+				PrintWriter map_pw;
+				PrintWriter shuffle_pw;
 				try {
-					File log_file = new File(this.outdir + "/" + this.outfile);
-					pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(log_file, true)));
-					pw.println(json);
-					pw.close();
+					File map_log_file = new File(this.outdir + "/" + this.map_outfile);
+					File shuffle_log_file = new File(this.outdir + "/" + this.shuffle_outfile);
+					map_pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(map_log_file, true)));
+					shuffle_pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(shuffle_log_file, true)));
+					map_pw.println(map_json);
+					shuffle_pw.println(shuffle_json);
+					map_pw.close();
+					shuffle_pw.close();
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 
 				/** update */
 				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
-				hist.clear();
+				map_hist.clear();
+				shuffle_hist.clear();
+				map_json = "";
+				shuffle_json = "";
 			}
 
 			/**
@@ -164,15 +178,26 @@ public class PickerDaemon implements Runnable {
 					continue;
 				} else {
 					msg = msg.toString();
-					if ( hist.containsKey(msg) ) {
-						//System.out.println("[Update Hist] (" + msg + ") from " + socketAddress);
-						hist.put(msg, hist.get(msg) + 1);
-						//System.out.println("[DEBUG] hist = " + hist);
-					} else {
-						//System.out.println("[add key to hist] " + msg.getClass() + ",(" + msg + ")" + msg.length() + " from " + socketAddress);
-						hist.put(msg, 1L);
-						//System.out.println("[DEBUG] hist = " + hist);
-					}
+					
+					// divide string 
+					String[] data = msg.split(",", 2);
+					String phase = data[0];
+					msg = data[1];
+
+					if (phase.equals("MAP")) {
+						
+						if ( map_hist.containsKey(msg) ) {
+							map_hist.put(msg, map_hist.get(msg) + 1);
+						} else {
+							map_hist.put(msg, 1L);
+						}
+					} else if (phase.equals("SHUFFLE")) {
+						if ( shuffle_hist.containsKey(msg) ) {
+							shuffle_hist.put(msg, shuffle_hist.get(msg) + 1);
+						} else {
+							shuffle_hist.put(msg, 1L);
+						}
+					} 
 				}
 
 			} catch(Exception e) {
@@ -206,7 +231,8 @@ public class PickerDaemon implements Runnable {
 		in_map.put("sum", sum);
 		map.put("metrics", in_map);
 		ObjectMapper mapper = new ObjectMapper();
-		String json = null;
+		String json = "{" + "timestamp" + ":" + this.now() + 
+				"metrics:" + " {sum:" + sum +"}" + "}";
 
 		try {
 			json = mapper.writeValueAsString(map);
