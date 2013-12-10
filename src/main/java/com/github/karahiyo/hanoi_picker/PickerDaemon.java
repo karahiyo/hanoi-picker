@@ -209,6 +209,7 @@ public class PickerDaemon implements Runnable {
 
 	public boolean terminate() {
 		this.isTermination = true;
+        logger.close();
 		return true;
 	}
 	
