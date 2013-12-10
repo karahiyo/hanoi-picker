@@ -199,36 +199,6 @@ public class PickerDaemon implements Runnable {
 		}
 	}
 
-	public static String makeJsonString(long time, Map<String, Long> hist) {
-		Map<String,Object> map = new HashMap<String,Object>();
-		Map<String, Object> in_map = new HashMap<String, Object>(); 
-		//fluentd v0.10.34以降では、
-		// format jsonの場合timeが残せない？
-		// http://qiita.com/rch850/items/3b7ce04e38c85a1ce5d0
-		//map.put("time", this.now());
-		map.put("timestamp", now());
-		long sum = countAllFreq(hist);
-		if(sum > 0) {
-			map.put("keymap", hist);
-		}
-		in_map.put("sum", sum);
-		map.put("metrics", in_map);
-		ObjectMapper mapper = new ObjectMapper();
-		String json = "{" + "timestamp" + ":" + now() + 
-				"metrics:" + " {sum:" + sum +"}" + "}";
-
-		try {
-			json = mapper.writeValueAsString(map);
-		} catch (JsonGenerationException e) {
-			e.printStackTrace();
-		} catch (JsonMappingException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		return json;
-	}
-
 	public static long countAllFreq(Map<String, Long> map) {
 		int sum = 0;
 		for (Map.Entry<String, Long> e : map.entrySet()) {
