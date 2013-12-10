@@ -8,7 +8,6 @@ public class HanoiPicker {
 		PickerDaemon picker = new PickerDaemon();
 		try {
 			picker.setupSocket();
-			picker.setupOutDir("/tmp");
 			picker.run();
 			picker.terminate();
 		} catch (Exception e) {

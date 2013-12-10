@@ -1,13 +1,10 @@
 package com.github.karahiyo.hanoi_picker;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
-import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.SocketAddress;
 import java.net.SocketTimeoutException;
 import java.text.SimpleDateFormat;
@@ -19,6 +16,7 @@ import java.util.TimeZone;
 import org.codehaus.jackson.JsonGenerationException;
 import org.codehaus.jackson.map.JsonMappingException;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.fluentd.logger.FluentLogger;
 
 
 /**
@@ -29,16 +27,14 @@ import org.codehaus.jackson.map.ObjectMapper;
  */
 public class PickerDaemon implements Runnable {
 
+	/** get host name */
+	private final static String HOST = getHostName();
+
 	/** server socket */
 	private DatagramSocket serverSocket;
 
 	/** messsage send host */
 	private SocketAddress socketAddress;
-
-	/** log output directory. default "/tmp" */
-	private String outdir = "/tmp";
-	private final String map_outfile = "hanoi-map-trace.log";
-	private final String shuffle_outfile = "hanoi-shffle-trace.log";
 
 	/** パケットサイズ */
 	public final int PACKET_SIZE = 1024;
@@ -59,7 +55,7 @@ public class PickerDaemon implements Runnable {
 	private long 	LAST_HIST_OUT_TIME;
 
 	/** hist out interval */
-	public static final int HIST_OUT_INTETRVAL = 1000; //ms
+	public static final int HIST_OUT_INTETRVAL = 500; //ms
 
 	/** map histogram data */
 	public Map<String, Long> map_hist = new HashMap<String, Long>();
@@ -69,6 +65,8 @@ public class PickerDaemon implements Runnable {
 
     public static SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 
+    // setup fluent-logger
+    private static FluentLogger logger = FluentLogger.getLogger("hanoi.keymap.trace");
    
 	// construct
 	public PickerDaemon() {}
@@ -95,10 +93,6 @@ public class PickerDaemon implements Runnable {
 		System.out.println("DatagramSocket running: port=" + serverSocket.getLocalPort());
 	}
 
-	public void setupOutDir(String dir) throws IOException {
-		this.outdir = dir;
-	}
-
 	public void run() {
 		System.out.println("** START PickerDaemon");
 
@@ -117,37 +111,26 @@ public class PickerDaemon implements Runnable {
 			String msg = "";
 
 
-			// periodical output hist 
+			/**
+			 *  ヒストマップの出力 
+			 */
 			if(LAST_HIST_OUT_TIME + HIST_OUT_INTETRVAL <= System.currentTimeMillis() ) {
-				long timestamp = LAST_HIST_OUT_TIME+ HIST_OUT_INTETRVAL; 
-				String map_json = makeJsonString(timestamp, map_hist);
-				String shuffle_json = makeJsonString(timestamp, shuffle_hist);
-
-				// debug
-				System.out.println(map_json);
-				System.out.println(shuffle_json);
-
-				PrintWriter map_pw;
-				PrintWriter shuffle_pw;
-				try {
-					File map_log_file = new File(this.outdir + "/" + this.map_outfile);
-					File shuffle_log_file = new File(this.outdir + "/" + this.shuffle_outfile);
-					map_pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(map_log_file, true)));
-					shuffle_pw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(shuffle_log_file, true)));
-					map_pw.println(map_json);
-					shuffle_pw.println(shuffle_json);
-					map_pw.close();
-					shuffle_pw.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				Map<String, Object> data = new HashMap<String, Object>();
+				data.put("key_map", map_hist.toString());
+				data.put("key_types", map_hist.size());
+				data.put("sum", countAllFreq(map_hist));
+				logger.log("map." + HOST, data);
+				map_hist.clear();
+				data.clear();
+				data.put("key_map", shuffle_hist);
+				data.put("key_types", shuffle_hist.size());
+				data.put("sum", countAllFreq(shuffle_hist));
+				logger.log("shuffle." + HOST, data);
+				shuffle_hist.clear();
+				data.clear();
 
 				/** update */
 				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
-				map_hist.clear();
-				shuffle_hist.clear();
-				map_json = "";
-				shuffle_json = "";
 			}
 
 			/**
@@ -216,14 +199,14 @@ public class PickerDaemon implements Runnable {
 		}
 	}
 
-	public String makeJsonString(long time, Map<String, Long> hist) {
+	public static String makeJsonString(long time, Map<String, Long> hist) {
 		Map<String,Object> map = new HashMap<String,Object>();
 		Map<String, Object> in_map = new HashMap<String, Object>(); 
 		//fluentd v0.10.34以降では、
 		// format jsonの場合timeが残せない？
 		// http://qiita.com/rch850/items/3b7ce04e38c85a1ce5d0
 		//map.put("time", this.now());
-		map.put("timestamp", this.now());
+		map.put("timestamp", now());
 		long sum = countAllFreq(hist);
 		if(sum > 0) {
 			map.put("keymap", hist);
@@ -231,7 +214,7 @@ public class PickerDaemon implements Runnable {
 		in_map.put("sum", sum);
 		map.put("metrics", in_map);
 		ObjectMapper mapper = new ObjectMapper();
-		String json = "{" + "timestamp" + ":" + this.now() + 
+		String json = "{" + "timestamp" + ":" + now() + 
 				"metrics:" + " {sum:" + sum +"}" + "}";
 
 		try {
@@ -246,7 +229,7 @@ public class PickerDaemon implements Runnable {
 		return json;
 	}
 
-	public long countAllFreq(Map<String, Long> map) {
+	public static long countAllFreq(Map<String, Long> map) {
 		int sum = 0;
 		for (Map.Entry<String, Long> e : map.entrySet()) {
 			sum += e.getValue();
@@ -264,12 +247,21 @@ public class PickerDaemon implements Runnable {
      * @args
      * @return String timestamp
      */
-    public String now() {
+    public static String now() {
         //long now = System.currentTimeMillis();
         //return Long.toString(now);
         Date date = new Date();
     	TimeZone.setDefault(TimeZone.getTimeZone("Asia/Tokyo"));
         return dayFormat.format(date);
+    }
+    
+    public static String getHostName() {
+        try {
+            return InetAddress.getLocalHost().getHostName();
+        }catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "UnknownHost";
     }
 }
 
