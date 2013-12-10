@@ -66,7 +66,7 @@ public class PickerDaemon implements Runnable {
     public static SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 
     // setup fluent-logger
-    private static FluentLogger logger = FluentLogger.getLogger("hanoi.keymap.trace");
+    private static FluentLogger logger = FluentLogger.getLogger("forward.mongo.hanoi.keymap.trace");
    
 	// construct
 	public PickerDaemon() {}
