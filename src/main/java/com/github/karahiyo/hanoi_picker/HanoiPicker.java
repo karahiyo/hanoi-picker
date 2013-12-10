@@ -5,7 +5,7 @@ import java.io.IOException;
 public class HanoiPicker {
 
 	public static void main(String[] args) throws IOException{
-		PickerDaemon picker = new PickerDaemon();
+		PickerDaemon picker = new PickerDaemon(args[0]);
 		try {
 			picker.setupSocket();
 			picker.run();

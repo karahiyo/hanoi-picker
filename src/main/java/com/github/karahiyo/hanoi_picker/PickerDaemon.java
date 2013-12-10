@@ -66,10 +66,13 @@ public class PickerDaemon implements Runnable {
     public static SimpleDateFormat dayFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z");
 
     // setup fluent-logger
-    private static FluentLogger logger = FluentLogger.getLogger("forward.mongo.hanoi.keymap.trace");
+    private static FluentLogger logger; // = FluentLogger.getLogger("forward.mongo.hanoi.keymap.trace", HOST, 24224);
    
 	// construct
-	public PickerDaemon() {}
+	public PickerDaemon(String remote_host) {
+        logger = FluentLogger.getLogger("forward.mongo.hanoi.keymap.trace", remote_host, 24224);
+    }
+
 
 	/**
 	 * setup socket connection
@@ -101,7 +104,6 @@ public class PickerDaemon implements Runnable {
 
 		while ( ! this.isTermination) {
 
-
 			/** 
 			 * 受信データ格納変数を初期化
 			 */
@@ -115,19 +117,32 @@ public class PickerDaemon implements Runnable {
 			 *  ヒストマップの出力 
 			 */
 			if(LAST_HIST_OUT_TIME + HIST_OUT_INTETRVAL <= System.currentTimeMillis() ) {
+                long timestamp = LAST_HIST_OUT_TIME+ HIST_OUT_INTETRVAL; 
+
 				Map<String, Object> data = new HashMap<String, Object>();
+				Map<String, Object> metrics = new HashMap<String, Object>();
+
+                // map
+                data.put("time", timestamp);
 				data.put("key_map", map_hist.toString());
-				data.put("key_types", map_hist.size());
-				data.put("sum", countAllFreq(map_hist));
+				metrics.put("key_types", map_hist.size());
+				metrics.put("sum", countAllFreq(map_hist));
+                data.put("metrics", metrics);
 				logger.log("map." + HOST, data);
 				map_hist.clear();
 				data.clear();
+                metrics.clear();
+
+                // shuffle
+                data.put("time", timestamp);
 				data.put("key_map", shuffle_hist);
-				data.put("key_types", shuffle_hist.size());
-				data.put("sum", countAllFreq(shuffle_hist));
+				metrics.put("key_types", shuffle_hist.size());
+				metrics.put("sum", countAllFreq(shuffle_hist));
+                data.put("metrics", metrics);
 				logger.log("shuffle." + HOST, data);
 				shuffle_hist.clear();
 				data.clear();
+                metrics.clear();
 
 				/** update */
 				LAST_HIST_OUT_TIME += HIST_OUT_INTETRVAL;
